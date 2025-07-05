@@ -155,8 +155,8 @@ print("-------------------------------------------------")
 FCnt = 0
 while True:
     msg = input("[ED] Send a message to the AS: ")
-    print("-------------------------------------------------")
     FCnt = uncofirmed_uplink(AppSKey, NwkSKey, DevAddr, FCnt, msg)
-    print(FCnt)
+    print(f"[ED] Uplink packet n {FCnt} forwarded to the NS")
+    print("-------------------------------------------------")
 
 sock.close()

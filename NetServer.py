@@ -113,7 +113,7 @@ while True:
 
         if authentication(received_MIC, MIC):
             FCnt_table[DevAddr] = FCnt + 1  # Update local FCnt only if MIC is valid
-            print(FCnt)
+            print(f"[NS] Device {DevAddr.hex()} uplink packet n {FCnt}")
 
             sock.sendto(data, ("127.0.0.1", 9002))  # Forward to AS
             print("[NS] Unconfirmed uplink packet forwarded to AS")
