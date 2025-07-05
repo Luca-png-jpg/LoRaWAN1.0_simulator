@@ -6,7 +6,7 @@ def factory_settings():
     AppSKey_table = {}  # Mapping: DevAddr → AppSKey
     return AppSKey_table
 
-# Decrypts FRMPayload using AES in CTR-like mode (LoRaWAN-compliant)
+# Decrypts FRMPayload using AES in CTR-like mode (LoRaWAN variaton)
 def decrypt_FRMPayload(AppSKey, DevAddr, FCnt, direction, ciphertext):
     aes = AES.new(AppSKey, AES.MODE_ECB)
     block_size = 16
