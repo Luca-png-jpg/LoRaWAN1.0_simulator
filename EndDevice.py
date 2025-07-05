@@ -157,5 +157,6 @@ while True:
     msg = input("[ED] Send a message to the AS: ")
     print("-------------------------------------------------")
     FCnt = uncofirmed_uplink(AppSKey, NwkSKey, DevAddr, FCnt, msg)
+    print(FCnt)
 
 sock.close()

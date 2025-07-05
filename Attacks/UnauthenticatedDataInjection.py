@@ -96,7 +96,7 @@ NwkSKey = bytes.fromhex('8F2D3C5B9A6E4F72B1C0A7D8E39146FA')  # Fake NwkSKey used
 
 while True:
     # Get Join Accept packet directed to the AS captured from Wireshark (hex string without spaces)
-    join_answer = input("Insert Join Answer packet from Wireshark: ")
+    join_answer = input("Insert Join Answer packet containing AppSKey (9001 -> 9002) from Wireshark: ")
     # Get intercepted unconfirmed uplink packet
     uul_pkt = input("Insert intercepted unconfirmed uplink packet from Wireshark: ")
 

